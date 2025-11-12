@@ -1,72 +1,14 @@
-
-# This file defines the services for deploying your Laravel application to Render.
-
 services:
-  # Web Service for Laravel Application (Nginx + PHP-FPM)
   - type: web
-    name: laravel-app
+    name: platform-ads-server
     env: docker
-    dockerfilePath: Dockerfile
-    dockerContext: .
-    # The command to start the combined Nginx and PHP-FPM service
-    # This will execute the start.sh script we created
-    startCommand: /usr/local/bin/start.sh
-    # Expose port 80, as Nginx is listening on it
-    ports:
-      - 80
-    # Environment variables for the Laravel application
+    branch: main
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    # startCommand is not required because the Dockerfile CMD is used
     envVars:
-      - key: APP_KEY
-        generateValue: true # Render will generate a secure key
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
-        value: "false"
-      - key: DB_CONNECTION
-        value: pgsql # Using PostgreSQL for Render managed database
-      - key: DB_HOST
-        value: ${db.host} # Render will inject the database host
-      - key: DB_PORT
-        value: ${db.port} # Render will inject the database port
-      - key: DB_DATABASE
-        value: ${db.database} # Render will inject the database name
-      - key: DB_USERNAME
-        value: ${db.user} # Render will inject the database username
-      - key: DB_PASSWORD
-        value: ${db.password} # Render will inject the database password
-      # Add any other necessary environment variables for your Laravel app
-      # - key: SOME_OTHER_VAR
-      #   value: "some_value"
-
-  # PostgreSQL Database Service
-  - type: pserv
-    name: db
-    plan: starter # You can choose a different plan based on your needs
-    # Render will automatically set up environment variables for this database
-    # (e.g., DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD)
-    # which are then injected into the laravel-app service.
-
-  # phpMyAdmin Service
-  - type: web
-    name: phpmyadmin
-    env: docker
-    image: phpmyadmin/phpmyadmin
-    ports:
-      - 80
-    envVars:
-      - key: PMA_HOST
-        value: db # Connect to the Render managed PostgreSQL database
-      - key: PMA_PORT
-        value: ${db.port}
-      - key: PMA_USER
-        value: ${db.user}
-      - key: PMA_PASSWORD
-        value: ${db.password}
-      - key: PMA_ARBITRARY
-        value: "1" # Allow connecting to arbitrary servers (useful for Render's internal hostnames)
-      - key: UPLOAD_LIMIT
-        value: 128M
-      - key: MEMORY_LIMIT
-        value: 256M
-    # Health check for phpMyAdmin
-    healthCheckPath: /
+        value: 'false'
+    # For secrets (APP_KEY, DB_PASSWORD, etc.) set them in the Render dashboard under the service's "Environment" -> "Secrets".

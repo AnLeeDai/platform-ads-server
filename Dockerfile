@@ -1,100 +1,41 @@
-# Use a Debian base image
-FROM debian:bullseye
+# Production Dockerfile: build assets, install deps, run PHP-FPM + Nginx
 
-# Set environment variables for MySQL
-ENV MYSQL_ROOT_PASSWORD=secret
-ENV MYSQL_DATABASE=laravel
-ENV MYSQL_USER=laravel
-ENV MYSQL_PASSWORD=secret
+# Note: frontend build removed per user request to follow Laravel deployment docs.
+# 1) Install Composer dependencies
+FROM composer:2 AS composer
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
-# Update and install system dependencies
-RUN apt-get update && apt-get install -y \
-    nginx \
-    php8.2-fpm \
-    php8.2-mysql \
-    php8.2-zip \
-    php8.2-gd \
-    php8.2-mbstring \
-    php8.2-xml \
-    php8.2-bcmath \
-    php8.2-curl \
-    php8.2-intl \
-    php-sqlite3 \
-    php-pgsql \
-    php-opcache \
-    php-cli \
-    git \
-    curl \
-    unzip \
-    mariadb-server \
-    mariadb-client \
-    supervisor \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-# Configure PHP-FPM
-RUN sed -i 's/listen = \/run\/php\/php8.2-fpm.sock/listen = 127.0.0.1:9000/g' /etc/php/8.2/fpm/pool.d/www.conf
-RUN sed -i 's/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g' /etc/php/8.2/fpm/php.ini
-RUN sed -i 's/memory_limit = 128M/memory_limit = 256M/g' /etc/php/8.2/fpm/php.ini
-RUN sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 128M/g' /etc/php/8.2/fpm/php.ini
-RUN sed -i 's/post_max_size = 8M/post_max_size = 128M/g' /etc/php/8.2/fpm/php.ini
-RUN chown -R www-data:www-data /var/www
-
-# Install phpMyAdmin
-RUN mkdir -p /var/www/phpmyadmin
-RUN curl -L https://files.phpmyadmin.net/phpMyAdmin/5.2.1/phpMyAdmin-5.2.1-all-languages.zip -o /tmp/phpmyadmin.zip \
-    && unzip /tmp/phpmyadmin.zip -d /var/www/phpmyadmin \
-    && mv /var/www/phpmyadmin/phpMyAdmin-5.2.1-all-languages/* /var/www/phpmyadmin \
-    && rm -rf /var/www/phpmyadmin/phpMyAdmin-5.2.1-all-languages /tmp/phpmyadmin.zip
-COPY docker/phpmyadmin/config.inc.php /var/www/phpmyadmin/config.inc.php
-RUN chown -R www-data:www-data /var/www/phpmyadmin
-
-# Configure Nginx for Laravel and phpMyAdmin
-COPY docker/nginx/nginx.conf /etc/nginx/sites-available/default
-RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-RUN rm -f /etc/nginx/sites-enabled/default.conf # Ensure no default Nginx config remains
-
-# Set working directory for Laravel
+# 3) Final image: PHP-FPM + Nginx on Debian
+FROM php:8.2-fpm
 WORKDIR /var/www/html
+
+# Install system packages and PHP extensions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nginx git unzip libpng-dev libjpeg-dev libfreetype6-dev libonig-dev libxml2-dev libzip-dev && \
+    docker-php-ext-configure gd --with-jpeg --with-freetype && \
+    docker-php-ext-install pdo pdo_mysql gd zip bcmath pcntl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy vendor from composer stage
+COPY --from=composer /app/vendor ./vendor
 
 # Copy application files
 COPY . .
 
-# Install Composer dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Nginx configuration and entrypoint
+COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Generate application key
-RUN php artisan key:generate
+# Create storage and cache dirs and set permissions
+RUN mkdir -p storage/framework storage/logs bootstrap/cache && \
+    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache || true
 
-# Clear and cache configurations
-RUN php artisan config:clear
-RUN php artisan cache:clear
-RUN php artisan view:clear
-RUN php artisan route:clear
-RUN php artisan event:clear
+# Expose port (Render will provide $PORT at runtime; entrypoint will rewrite nginx to listen on $PORT)
+ENV PORT=8080
+EXPOSE 8080
 
-RUN php artisan config:cache
-RUN php artisan route:cache
-RUN php artisan view:cache
-RUN php artisan event:cache
-
-# Set proper permissions
-RUN chown -R www-data:www-data storage bootstrap/cache
-RUN chmod -R 775 storage bootstrap/cache
-
-# Copy supervisord configuration
-COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
-
-# Copy and set up entrypoint script
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# Expose ports
-EXPOSE 80
-EXPOSE 3306
-
-# Use the entrypoint script to start all services
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"] # Supervisord will be the main process
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]
