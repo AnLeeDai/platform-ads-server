@@ -19,10 +19,10 @@ RUN apt-get update && apt-get install -y \
     php8.2-bcmath \
     php8.2-curl \
     php8.2-intl \
-    php8.2-sqlite3 \
-    php8.2-pgsql \
-    php8.2-opcache \
-    php8.2-cli \
+    php-sqlite3 \
+    php-pgsql \
+    php-opcache \
+    php-cli \
     git \
     curl \
     unzip \
