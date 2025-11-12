@@ -5,7 +5,8 @@
 FROM composer:2 AS composer
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+# Avoid running composer scripts during image build (they may call artisan which isn't present yet)
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 # 3) Final image: PHP-FPM + Nginx on Debian
 FROM php:8.2-fpm
