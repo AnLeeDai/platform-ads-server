@@ -15,4 +15,9 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::prefix('users')->group(function () {
         Route::get('/', [App\Http\Controllers\UserController::class, 'index']);
     });
+
+    Route::prefix('storage')->group(function () {
+        Route::get('/', [App\Http\Controllers\StorageController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\StorageController::class, 'store']);
+    });
 });

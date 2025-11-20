@@ -27,7 +27,7 @@ class RoleController extends Controller
 
             $roles = $this->roleModel->simplePaginate($per_page, ['*'], 'page', $page);
 
-            if (!$roles) {
+            if ($roles->isEmpty()) {
                 return $this->errorResponse('No roles found', 404);
             }
 
