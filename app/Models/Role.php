@@ -17,29 +17,4 @@ class Role extends Model
         'name',
         'description',
     ];
-
-    public function index(int $per_page, int $page = 1)
-    {
-        $roles = parent::simplePaginate($per_page, ['*'], 'page', $page);
-
-        if ($roles->isEmpty()) {
-            return null;
-        }
-
-        return $roles;
-    }
-
-    
-
-
-    public function create(array $data)
-    {
-        $role = parent::create($data);
-
-        if (!$role) {
-            return null;
-        }
-
-        return $role;
-    }
 }
