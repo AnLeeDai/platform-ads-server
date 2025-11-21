@@ -23,7 +23,6 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     });
 
     Route::prefix('wheels')->group(function () {
-        Route::get('/', [App\Http\Controllers\WheelController::class, 'index']);
         Route::post('/', [App\Http\Controllers\WheelController::class, 'store']);
         Route::delete('/', [App\Http\Controllers\WheelController::class, 'deleteAll']);
     });
