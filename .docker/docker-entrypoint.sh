@@ -3,7 +3,6 @@ set -e
 
 cd /var/www/html
 
-# 1. Chuẩn bị .env nếu chưa có
 if [ -f ".env" ]; then
   echo "[entrypoint] Using existing .env"
 else
@@ -15,40 +14,73 @@ else
   fi
 fi
 
-# 2. Generate APP_KEY nếu chưa có (và APP_KEY env chưa set)
-if [ -z "$APP_KEY" ]; then
+if [ -z "${APP_KEY:-}" ]; then
   if ! grep -q "APP_KEY=" .env 2>/dev/null || [ "$(grep -E "APP_KEY=.*" .env | sed -n '1p' | cut -d'=' -f2)" = "" ]; then
     echo "[entrypoint] Generating APP_KEY"
-    php artisan key:generate --force || echo "[entrypoint] Failed to generate APP_KEY (maybe artisan not ready?)"
+    php artisan key:generate --force || echo "[entrypoint] Failed to generate APP_KEY"
   fi
 fi
 
-# 3. Migrate DB (OPTIONAL – nếu bạn muốn auto migrate khi deploy)
-# Uncomment nếu phù hợp:
-echo "[entrypoint] Running migrations..."
-php artisan migrate --force || echo "[entrypoint] Migration failed"
+if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
+  echo "[entrypoint] Running migrations..."
+  php artisan migrate --force || echo "[entrypoint] Migration failed"
+fi
 
-# 4. Tạo storage link nếu chưa có
 if [ ! -L public/storage ]; then
   echo "[entrypoint] Creating storage symlink..."
   php artisan storage:link || echo "[entrypoint] Failed to create storage symlink"
 fi
 
-# 5. Cache config/route/view để max performance
 echo "[entrypoint] Caching Laravel config/routes/views..."
 php artisan config:cache || echo "[entrypoint] config:cache failed"
 php artisan route:cache || echo "[entrypoint] route:cache failed"
 php artisan view:cache || echo "[entrypoint] view:cache failed"
 
-# 6. Set quyền
 chown -R www-data:www-data storage bootstrap/cache || true
 
-# 7. Start php-fpm (background)
+CPU_CORES=$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 2)
+
+PHP_FPM_MAX_CHILDREN=${PHP_FPM_MAX_CHILDREN:-$((CPU_CORES * 10))}
+PHP_FPM_START_SERVERS=${PHP_FPM_START_SERVERS:-$((CPU_CORES * 2))}
+PHP_FPM_MIN_SPARE=${PHP_FPM_MIN_SPARE:-$CPU_CORES}
+PHP_FPM_MAX_SPARE=${PHP_FPM_MAX_SPARE:-$((CPU_CORES * 4))}
+
+cat > /usr/local/etc/php-fpm.d/www.conf <<EOF
+[www]
+user = www-data
+group = www-data
+
+listen = 9000
+listen.backlog = 65535
+listen.mode = 0660
+listen.allowed_clients = 127.0.0.1
+
+pm = dynamic
+pm.max_children = ${PHP_FPM_MAX_CHILDREN}
+pm.start_servers = ${PHP_FPM_START_SERVERS}
+pm.min_spare_servers = ${PHP_FPM_MIN_SPARE}
+pm.max_spare_servers = ${PHP_FPM_MAX_SPARE}
+pm.max_requests = 500
+
+request_terminate_timeout = 30s
+
+access.log = /proc/self/fd/2
+catch_workers_output = yes
+clear_env = no
+
+slowlog = /proc/self/fd/2
+request_slowlog_timeout = 5s
+
+php_admin_value[error_log] = /proc/self/fd/2
+php_admin_flag[log_errors] = on
+EOF
+
+echo "[entrypoint] PHP-FPM auto tuned: cores=${CPU_CORES}, max_children=${PHP_FPM_MAX_CHILDREN}"
+
 echo "[entrypoint] Starting php-fpm..."
 php-fpm -D
 
-# 8. Thay __PORT__ trong nginx.conf bằng $PORT (Render)
-if [ -n "${PORT}" ]; then
+if [ -n "${PORT:-}" ]; then
   echo "[entrypoint] Setting nginx to listen on port ${PORT}"
   sed -i "s/__PORT__/${PORT}/g" /etc/nginx/conf.d/default.conf || true
 else
@@ -56,5 +88,4 @@ else
   sed -i "s/__PORT__/8080/g" /etc/nginx/conf.d/default.conf || true
 fi
 
-# 9. Start nginx (foreground – giữ container sống)
 exec "$@"
