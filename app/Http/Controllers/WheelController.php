@@ -12,7 +12,8 @@ class WheelController extends Controller
     private Wheel $wheelModel;
     private Storage $storageModel;
 
-    private const CACHE_KEY_WHEELS = 'wheel_segments_with_storage';
+    private const string CACHE_KEY_WHEELS = 'wheel_segments_with_storage';
+    private const string CACHE_KEY_WHEELS_SPIN_META = 'wheel_segments_spin_meta';
 
     public function __construct(
         Wheel $wheelModel,
@@ -32,10 +33,114 @@ class WheelController extends Controller
         });
     }
 
+    private function buildSpinMeta(array $wheels): array
+    {
+        $weightEntries = [];
+        $degreeEntries = [];
+
+        $totalWeight = 0.0;
+        $totalDegrees = 0;
+
+        foreach ($wheels as $index => $wheel) {
+            $rate = (float) ($wheel['storage']['interest_rate'] ?? 0);
+
+            $start = (int) $wheel['start_degree'];
+            $end = (int) $wheel['end_degree'];
+
+            $size = ($start <= $end)
+                ? $end - $start + 1
+                : 360 - $start + $end + 1;
+
+            $weightEntries[] = [
+                'index' => $index,
+                'weight' => $rate,
+                'cum' => 0.0,
+            ];
+
+            $degreeEntries[] = [
+                'index' => $index,
+                'size' => $size,
+                'cum' => 0,
+            ];
+
+            $totalWeight += $rate;
+            $totalDegrees += $size;
+        }
+
+        $cum = 0.0;
+        foreach ($weightEntries as &$entry) {
+            $cum += $entry['weight'];
+            $entry['cum'] = $cum;
+        }
+        unset($entry);
+
+        $cumDeg = 0;
+        foreach ($degreeEntries as &$entry) {
+            $cumDeg += $entry['size'];
+            $entry['cum'] = $cumDeg;
+        }
+        unset($entry);
+
+        return [
+            'total_weight' => $totalWeight,
+            'weights' => $weightEntries,
+            'total_degrees' => $totalDegrees,
+            'degrees' => $degreeEntries,
+        ];
+    }
+
+    private function getWheelSpinMetaFromCache(): array
+    {
+        return Cache::rememberForever(self::CACHE_KEY_WHEELS_SPIN_META, function () {
+            $wheels = $this->getWheelSegmentsFromCache();
+            return $this->buildSpinMeta($wheels);
+        });
+    }
+
     private function rebuildWheelCache(): void
     {
         Cache::forget(self::CACHE_KEY_WHEELS);
-        $this->getWheelSegmentsFromCache();
+        Cache::forget(self::CACHE_KEY_WHEELS_SPIN_META);
+
+        $wheels = $this->getWheelSegmentsFromCache();
+        $meta = $this->buildSpinMeta($wheels);
+
+        Cache::forever(self::CACHE_KEY_WHEELS_SPIN_META, $meta);
+    }
+
+    private function filterStorageForUser(?array $storage): ?array
+    {
+        if (!is_array($storage)) {
+            return $storage;
+        }
+
+        return [
+            'id' => $storage['id'] ?? null,
+            'name' => $storage['name'] ?? null,
+            'description' => $storage['description'] ?? null,
+            'expired_date' => $storage['expired_date'] ?? null,
+            'item_type' => $storage['item_type'] ?? null,
+            'quantity' => $storage['quantity'] ?? null,
+        ];
+    }
+
+    private function transformWheelsForResponse(array $wheels): array
+    {
+        foreach ($wheels as &$wheel) {
+            unset($wheel['created_at'], $wheel['updated_at']);
+
+            if (isset($wheel['storage'])) {
+                $wheel['storage'] = $this->filterStorageForUser($wheel['storage']);
+            }
+        }
+        unset($wheel);
+
+        return $wheels;
+    }
+
+    private function transformStorageForResponse(?array $storage): ?array
+    {
+        return $this->filterStorageForUser($storage);
     }
 
     public function index()
@@ -46,6 +151,8 @@ class WheelController extends Controller
             if (empty($wheels)) {
                 return $this->errorResponse('No wheels found', 404);
             }
+
+            $wheels = $this->transformWheelsForResponse($wheels);
 
             return $this->successResponse($wheels, message: 'Wheels retrieved successfully');
         } catch (\Exception $e) {
@@ -79,8 +186,7 @@ class WheelController extends Controller
                 'import_all' => 'nullable|boolean',
             ]);
 
-            if (!empty($validated['import_all']) && $validated['import_all'] == true) {
-
+            if (!empty($validated['import_all']) && $validated['import_all'] === true) {
                 $storages = $this->storageModel::select('id')->get();
 
                 if ($storages->isEmpty()) {
@@ -96,14 +202,13 @@ class WheelController extends Controller
 
                 foreach ($storages as $index => $storage) {
                     $extra = ($index < $remainder) ? 1 : 0;
-
                     $segmentSize = $baseSegment + $extra;
 
                     $startDegree = $currentStart;
                     $endDegree = $currentStart + $segmentSize - 1;
 
                     if ($endDegree > 359) {
-                        $endDegree = 0;
+                        $endDegree = 359;
                     }
 
                     $wheel = $this->wheelModel->create([
@@ -181,6 +286,7 @@ class WheelController extends Controller
         try {
             $this->wheelModel->truncate();
             Cache::forget(self::CACHE_KEY_WHEELS);
+            Cache::forget(self::CACHE_KEY_WHEELS_SPIN_META);
 
             return $this->successResponse(
                 message: 'All wheels deleted successfully',
@@ -204,6 +310,8 @@ class WheelController extends Controller
                 return $this->errorResponse('No wheels configured or cache empty', 404);
             }
 
+            $meta = $this->getWheelSpinMetaFromCache();
+
             $missChancePercent = 5;
             if (rand(1, 100) <= $missChancePercent) {
                 $degree = rand(0, 359);
@@ -215,57 +323,37 @@ class WheelController extends Controller
                 ], 'No prize (miss)');
             }
 
-            $totalWeight = 0.0;
-            foreach ($wheels as $wheel) {
-                $rate = (float) ($wheel['storage']['interest_rate'] ?? 0);
-                $totalWeight += $rate;
-            }
-
             $chosenWheel = null;
 
-            if ($totalWeight > 0) {
-                $r = lcg_value() * $totalWeight;
-                $cum = 0.0;
-
-                foreach ($wheels as $wheel) {
-                    $cum += (float) ($wheel['storage']['interest_rate'] ?? 0);
-                    if ($r <= $cum) {
-                        $chosenWheel = $wheel;
+            if ($meta['total_weight'] > 0) {
+                $r = lcg_value() * $meta['total_weight'];
+                foreach ($meta['weights'] as $entry) {
+                    if ($r <= $entry['cum']) {
+                        $chosenWheel = $wheels[$entry['index']] ?? null;
                         break;
                     }
                 }
 
                 if (!$chosenWheel) {
-                    $chosenWheel = end($wheels);
+                    $lastIndex = array_key_last($wheels);
+                    $chosenWheel = $wheels[$lastIndex];
                 }
-
             } else {
-                $degreeSegments = [];
-                $totalDegrees = 0;
-
-                foreach ($wheels as $wheel) {
-                    $s = (int) $wheel['start_degree'];
-                    $e = (int) $wheel['end_degree'];
-
-                    $size = ($s <= $e) ? $e - $s + 1 : 360 - $s + $e + 1;
-
-                    $degreeSegments[] = ['wheel' => $wheel, 'size' => $size];
-                    $totalDegrees += $size;
+                if ($meta['total_degrees'] <= 0) {
+                    return $this->errorResponse('Invalid wheel configuration', 500);
                 }
 
-                $r = rand(0, $totalDegrees - 1);
-                $cum = 0;
-
-                foreach ($degreeSegments as $seg) {
-                    $cum += $seg['size'];
-                    if ($r < $cum) {
-                        $chosenWheel = $seg['wheel'];
+                $r = rand(0, $meta['total_degrees'] - 1);
+                foreach ($meta['degrees'] as $entry) {
+                    if ($r < $entry['cum']) {
+                        $chosenWheel = $wheels[$entry['index']] ?? null;
                         break;
                     }
                 }
 
                 if (!$chosenWheel) {
-                    $chosenWheel = end($degreeSegments)['wheel'];
+                    $lastIndex = array_key_last($wheels);
+                    $chosenWheel = $wheels[$lastIndex];
                 }
             }
 
@@ -283,12 +371,13 @@ class WheelController extends Controller
                 $degree = ($r < $part1) ? $s + $r : $r - $part1;
             }
 
-            error_log("Chosen wheel: " . json_encode($chosenWheel) . ", Degree: $degree");
+            $storage = $chosenWheel['storage'] ?? null;
+            $storage = \is_array($storage) ? $this->transformStorageForResponse($storage) : $storage;
 
             return $this->successResponse([
                 'is_win' => true,
                 'degree' => $degree,
-                'storage' => $chosenWheel['storage'],
+                'storage' => $storage,
             ], 'Spin result');
 
         } catch (\Exception $e) {
