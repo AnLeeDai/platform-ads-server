@@ -1,14 +1,9 @@
-# =========================
-# 1) Build Composer vendor
-# =========================
 FROM composer:2 AS composer
 
 WORKDIR /app
 
-# Copy only composer files to leverage Docker cache
 COPY composer.json composer.lock ./
 
-# Cài dependencies PHP cho production, không chạy scripts
 RUN composer install \
     --no-dev \
     --no-interaction \
@@ -18,13 +13,12 @@ RUN composer install \
 
 
 # =======================================
-# 2) Final image: PHP-FPM + Nginx (Debian)
+# 2) Final image: PHP-FPM + Nginx
 # =======================================
 FROM php:8.2-fpm-bullseye
 
 WORKDIR /var/www/html
 
-# Cài system packages và PHP extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     git \
@@ -39,21 +33,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-install pdo pdo_mysql gd zip bcmath pcntl opcache \
     && rm -rf /var/lib/apt/lists/*
 
-# Bật OPcache cho production
+# OPcache tối ưu cho production
 RUN { \
     echo 'opcache.enable=1'; \
     echo 'opcache.enable_cli=0'; \
     echo 'opcache.memory_consumption=256'; \
     echo 'opcache.interned_strings_buffer=16'; \
-    echo 'opcache.max_accelerated_files=20000'; \
+    echo 'opcache.max_accelerated_files=50000'; \
     echo 'opcache.validate_timestamps=0'; \
-    echo 'opcache.save_comments=1'; \
+    echo 'opcache.revalidate_path=0'; \
+    echo 'opcache.fast_shutdown=1'; \
+    echo 'opcache.jit=1205'; \
+    echo 'opcache.jit_buffer_size=64M'; \
     } > /usr/local/etc/php/conf.d/opcache.ini
 
-# Copy vendor từ stage Composer
+# Copy vendor từ stage composer
 COPY --from=composer /app/vendor ./vendor
 
-# Copy toàn bộ source (trừ những thứ ignore trong .dockerignore)
+# Copy source
 COPY . .
 
 # Nginx config + entrypoint
@@ -61,14 +58,9 @@ COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Tạo thư mục cần thiết và set quyền
-RUN mkdir -p storage/framework storage/logs bootstrap/cache && \
-    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN mkdir -p storage/framework storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 
-# Laravel .env và php-fpm/nginx sẽ chạy dưới root (nginx master) + www-data (workers)
-# nếu muốn chặt chẽ hơn có thể USER www-data, nhưng cho đơn giản ta để mặc định.
-
-# Expose port (Render cung cấp $PORT runtime)
 ENV PORT=8080
 EXPOSE 8080
 
