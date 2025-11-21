@@ -12,7 +12,7 @@ class WheelController extends Controller
     private Wheel $wheelModel;
     private Storage $storageModel;
 
-    private const string CACHE_KEY_WHEELS = 'wheel_segments_with_storage';
+    private const CACHE_KEY_WHEELS = 'wheel_segments_with_storage';
 
     public function __construct(
         Wheel $wheelModel,
@@ -22,35 +22,52 @@ class WheelController extends Controller
         $this->storageModel = $storageModel;
     }
 
+    private function getWheelSegmentsFromCache(): array
+    {
+        return Cache::rememberForever(self::CACHE_KEY_WHEELS, function () {
+            return $this->wheelModel
+                ->with('storage')
+                ->get()
+                ->toArray();
+        });
+    }
+
     private function rebuildWheelCache(): void
     {
-        $wheels = $this->wheelModel->with('storage')->get();
-
-        $data = $wheels->map(fn($wheel) => [
-            'start_degree' => (int) $wheel->start_degree,
-            'end_degree' => (int) $wheel->end_degree,
-            'storage' => $wheel->storage ? [
-                'id' => $wheel->storage->id,
-                'name' => $wheel->storage->name,
-                'interest_rate' => (float) ($wheel->storage->interest_rate ?? 0),
-            ] : null,
-        ])->values()->all();
-
-        Cache::forever(self::CACHE_KEY_WHEELS, $data);
+        Cache::forget(self::CACHE_KEY_WHEELS);
+        $this->getWheelSegmentsFromCache();
     }
 
     public function index()
     {
         try {
-            $wheels = $this->wheelModel->all();
+            $wheels = $this->getWheelSegmentsFromCache();
 
-            if ($wheels->isEmpty()) {
+            if (empty($wheels)) {
                 return $this->errorResponse('No wheels found', 404);
             }
 
             return $this->successResponse($wheels, message: 'Wheels retrieved successfully');
         } catch (\Exception $e) {
             return $this->errorResponse(message: 'Server Error', status: 500, data: $e->getMessage());
+        }
+    }
+
+    public function clearCache()
+    {
+        try {
+            $this->rebuildWheelCache();
+
+            return $this->successResponse(
+                message: 'Wheel cache cleared and rebuilt successfully',
+                data: null
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                message: 'Server Error',
+                status: 500,
+                data: $e->getMessage()
+            );
         }
     }
 
@@ -181,7 +198,7 @@ class WheelController extends Controller
     public function startSpin()
     {
         try {
-            $wheels = Cache::get(self::CACHE_KEY_WHEELS, []);
+            $wheels = $this->getWheelSegmentsFromCache();
 
             if (empty($wheels)) {
                 return $this->errorResponse('No wheels configured or cache empty', 404);
