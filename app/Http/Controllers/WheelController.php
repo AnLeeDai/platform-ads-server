@@ -12,7 +12,7 @@ class WheelController extends Controller
     private Wheel $wheelModel;
     private Storage $storageModel;
 
-    private const CACHE_KEY_WHEELS = 'wheel_segments_with_storage';
+    private const string CACHE_KEY_WHEELS = 'wheel_segments_with_storage';
 
     public function __construct(
         Wheel $wheelModel,
@@ -26,17 +26,15 @@ class WheelController extends Controller
     {
         $wheels = $this->wheelModel->with('storage')->get();
 
-        $data = $wheels->map(function ($wheel) {
-            return [
-                'start_degree' => (int) $wheel->start_degree,
-                'end_degree' => (int) $wheel->end_degree,
-                'storage' => $wheel->storage ? [
-                    'id' => $wheel->storage->id,
-                    'name' => $wheel->storage->name,
-                    'interest_rate' => (float) ($wheel->storage->interest_rate ?? 0),
-                ] : null,
-            ];
-        })->values()->all();
+        $data = $wheels->map(fn($wheel) => [
+            'start_degree' => (int) $wheel->start_degree,
+            'end_degree' => (int) $wheel->end_degree,
+            'storage' => $wheel->storage ? [
+                'id' => $wheel->storage->id,
+                'name' => $wheel->storage->name,
+                'interest_rate' => (float) ($wheel->storage->interest_rate ?? 0),
+            ] : null,
+        ])->values()->all();
 
         Cache::forever(self::CACHE_KEY_WHEELS, $data);
     }
@@ -232,11 +230,7 @@ class WheelController extends Controller
                     $s = (int) $wheel['start_degree'];
                     $e = (int) $wheel['end_degree'];
 
-                    if ($s <= $e) {
-                        $size = $e - $s + 1;
-                    } else {
-                        $size = (360 - $s) + ($e + 1);
-                    }
+                    $size = ($s <= $e) ? $e - $s + 1 : 360 - $s + $e + 1;
 
                     $degreeSegments[] = ['wheel' => $wheel, 'size' => $size];
                     $totalDegrees += $size;
@@ -269,12 +263,10 @@ class WheelController extends Controller
                 $total = $part1 + $part2;
                 $r = rand(0, $total - 1);
 
-                if ($r < $part1) {
-                    $degree = $s + $r;
-                } else {
-                    $degree = $r - $part1;
-                }
+                $degree = ($r < $part1) ? $s + $r : $r - $part1;
             }
+
+            error_log("Chosen wheel: " . json_encode($chosenWheel) . ", Degree: $degree");
 
             return $this->successResponse([
                 'is_win' => true,

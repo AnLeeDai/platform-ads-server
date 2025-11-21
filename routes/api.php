@@ -25,7 +25,13 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::prefix('wheels')->group(function () {
         Route::get('/', [App\Http\Controllers\WheelController::class, 'index']);
         Route::post('/', [App\Http\Controllers\WheelController::class, 'store']);
-        Route::get('/spin', [App\Http\Controllers\WheelController::class, 'startSpin']);
         Route::delete('/', [App\Http\Controllers\WheelController::class, 'deleteAll']);
+    });
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('wheels')->group(function () {
+        Route::get('/', [App\Http\Controllers\WheelController::class, 'index']);
+        Route::get('/spin', [App\Http\Controllers\WheelController::class, 'startSpin']);
     });
 });
