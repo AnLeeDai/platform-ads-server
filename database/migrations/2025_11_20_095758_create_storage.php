@@ -15,9 +15,9 @@ return new class extends Migration {
             $table->char('name')->unique()->index();
             $table->text('description')->nullable();
             $table->date('expired_date')->nullable();
-            $table->enum('item_type', ['CASH', 'OTHERS'])->default('OTHERS');
-            $table->bigInteger('quantity')->default(0);
-            $table->char('percent')->default('0');
+            $table->enum('item_type', ['CASH', 'COUPON', 'POINT'])->default('POINT');
+            $table->bigInteger('quantity')->nullable()->default(0);
+            $table->float('interest_rate')->default(0);
             $table->timestamps();
         });
     }

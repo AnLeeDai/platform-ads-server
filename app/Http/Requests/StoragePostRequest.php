@@ -19,15 +19,16 @@ class StoragePostRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    
+
     public function rules()
     {
         return [
             '*.name' => 'required|string|max:255',
             '*.description' => 'nullable|string',
-            '*.quantity' => 'required|integer|min:0',
-            '*.item_type' => 'required|string|in:CASH,OTHERS',
-            '*.percent' => 'required|string',
+            '*.quantity' => 'nullable|integer|min:0',
+            '*.item_type' => 'required|string|in:CASH,COUPON,POINT',
+            '*.expired_date' => 'nullable|date',
+            '*.interest_rate' => 'required|numeric|min:0',
         ];
     }
 }

@@ -15,10 +15,12 @@ class AuthController extends Controller
 
     private Role $roleModel;
 
-    public function __construct()
-    {
-        $this->userModel = new User();
-        $this->roleModel = new Role();
+    public function __construct(
+        User $userModel,
+        Role $roleModel
+    ) {
+        $this->userModel = $userModel;
+        $this->roleModel = $roleModel;
     }
 
 

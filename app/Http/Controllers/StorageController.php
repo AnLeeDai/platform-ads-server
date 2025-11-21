@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoragePostRequest;
 use App\Http\Requests\StorageGetRequest;
 use App\Models\Storage;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StorageController extends Controller
 {
@@ -48,26 +50,26 @@ class StorageController extends Controller
     public function store(StoragePostRequest $request)
     {
         try {
-            $items = $request->all();
-            $created = [];
+            $validated = $request->validated();
 
-            foreach ($items as $item) {
+            DB::beginTransaction();
+
+            $created = [];
+            foreach ($validated as $item) {
                 $created[] = $this->storageModel->create($item);
             }
 
-            if (empty($created)) {
-                return $this->errorResponse(
-                    message: 'Failed to create storage',
-                    status: 500
-                );
-            }
+            DB::commit();
 
             return $this->successResponse(
-                message: 'Storage created successfully',
-                data: $created
+                message: 'Storages created successfully',
+                data: $created,
+                status: 201
             );
 
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return $this->errorResponse(
                 message: 'Server Error',
                 status: 500,
@@ -75,4 +77,32 @@ class StorageController extends Controller
             );
         }
     }
+
+    public function update(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'name' => 'sometimes|string|max:255',
+                'quantity' => 'sometimes|integer|min:0',
+                'interest_rate' => 'required|numeric|min:0',
+            ]);
+
+            $storage = $this->storageModel->find($id);
+
+            if (!$storage) {
+                return $this->errorResponse(message: 'Storage not found', status: 404);
+            }
+
+            $storage->update($validated);
+
+            return $this->successResponse(
+                message: 'Storage updated successfully',
+                data: $storage
+            );
+
+        } catch (\Exception $e) {
+            return $this->errorResponse(message: 'Server Error', status: 500, data: $e->getMessage());
+        }
+    }
+
 }

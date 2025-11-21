@@ -7,13 +7,22 @@ use App\Http\Requests\UserGetRequest;
 
 class UserController extends Controller
 {
+
+    private User $userModel;
+
+    public function __construct(
+        User $userModel
+    ) {
+        $this->userModel = $userModel;
+    }
+
     public function index(UserGetRequest $request)
     {
         try {
             $per_page = (int) $request->query('per_page', 10);
             $page = (int) $request->query('page', 1);
 
-            $users = User::whereHas('role', function ($q) {
+            $users = $this->userModel->whereHas('role', function ($q) {
                 $q->where('name', '!=', 'admin');
             })->simplePaginate($per_page, ['*'], 'page', $page);
 

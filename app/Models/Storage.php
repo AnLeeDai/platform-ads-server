@@ -18,6 +18,8 @@ class Storage extends Model
         'name',
         'description',
         'quantity',
-        'percent',
+        'item_type',
+        'interest_rate',
+        'expired_date',
     ];
 }

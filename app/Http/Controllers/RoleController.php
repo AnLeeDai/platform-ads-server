@@ -8,14 +8,13 @@ use App\Http\Requests\RoleGetRequest;
 
 class RoleController extends Controller
 {
-
     private Role $roleModel;
 
-    public function __construct()
-    {
-        $this->roleModel = new Role();
+    public function __construct(
+        Role $roleModel
+    ) {
+        $this->roleModel = $roleModel;
     }
-
 
     public function index(RoleGetRequest $request)
     {
