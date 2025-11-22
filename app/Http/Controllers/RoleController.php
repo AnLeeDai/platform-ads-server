@@ -3,17 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
+use App\Services\RoleService;
 // use App\Http\Requests\RolePostRequest;
 use App\Http\Requests\RoleGetRequest;
 
 class RoleController extends Controller
 {
     private Role $roleModel;
+    private RoleService $roleService;
 
     public function __construct(
-        Role $roleModel
+        Role $roleModel,
+        RoleService $roleService
     ) {
         $this->roleModel = $roleModel;
+        $this->roleService = $roleService;
     }
 
     public function index(RoleGetRequest $request)
@@ -24,7 +28,7 @@ class RoleController extends Controller
             $per_page = $validated['per_page'];
             $page = $validated['page'];
 
-            $roles = $this->roleModel->simplePaginate($per_page, ['*'], 'page', $page);
+            $roles = $this->roleService->getRoles($per_page, $page);
 
             if ($roles->isEmpty()) {
                 return $this->errorResponse('No roles found', 404);
