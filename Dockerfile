@@ -12,10 +12,7 @@ RUN composer install \
     --no-scripts
 
 
-# =======================================
-# 2) Final image: PHP-FPM + Nginx
-# =======================================
-FROM php:8.2-fpm-bullseye
+FROM php:8.3.6-fpm-bullseye
 
 WORKDIR /var/www/html
 
@@ -33,7 +30,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-install pdo pdo_mysql gd zip bcmath pcntl opcache \
     && rm -rf /var/lib/apt/lists/*
 
-# OPcache tối ưu cho production
 RUN { \
     echo 'opcache.enable=1'; \
     echo 'opcache.enable_cli=0'; \
@@ -47,13 +43,10 @@ RUN { \
     echo 'opcache.jit_buffer_size=64M'; \
     } > /usr/local/etc/php/conf.d/opcache.ini
 
-# Copy vendor từ stage composer
 COPY --from=composer /app/vendor ./vendor
 
-# Copy source
 COPY . .
 
-# Nginx config + entrypoint
 COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
