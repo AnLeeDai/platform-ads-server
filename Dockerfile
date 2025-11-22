@@ -1,4 +1,4 @@
-FROM composer:2 AS composer
+FROM composer:2
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ RUN composer install \
     --no-scripts
 
 
-FROM php:8.3.6-fpm-bookworm
+FROM php:8.3-fpm-bookworm
 
 WORKDIR /var/www/html
 
@@ -26,9 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    php8.3-dev \
     && docker-php-ext-configure gd --with-jpeg --with-freetype \
     && docker-php-ext-install pdo pdo_mysql pdo_pgsql gd zip bcmath pcntl opcache \
-    && pecl install apcu-5.1.22 \
+    && pecl install apcu \
     && docker-php-ext-enable apcu \
     && rm -rf /var/lib/apt/lists/*
 
