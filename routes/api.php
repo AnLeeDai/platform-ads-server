@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
+
+Route::get('/sanctum/csrf-cookie', [CsrfCookieController::class, 'show']);
 
 Route::post('/auth/register', [App\Http\Controllers\AuthController::class, 'store']);
 Route::post('/auth/login', [App\Http\Controllers\AuthController::class, 'index']);

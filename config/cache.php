@@ -34,9 +34,8 @@ return [
 
     'stores' => [
 
-        'array' => [
-            'driver' => 'array',
-            'serialize' => false,
+        'apc' => [
+            'driver' => 'apc',
         ],
 
         'database' => [

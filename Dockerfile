@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-dev \
     libzip-dev \
     && docker-php-ext-configure gd --with-jpeg --with-freetype \
-    && docker-php-ext-install pdo pdo_mysql gd zip bcmath pcntl opcache \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql gd zip bcmath pcntl opcache \
     && pecl install apcu \
     && docker-php-ext-enable apcu \
     && rm -rf /var/lib/apt/lists/*
@@ -50,6 +50,7 @@ COPY --from=composer /app/vendor ./vendor
 COPY . .
 
 COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY .docker/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
