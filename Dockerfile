@@ -1,4 +1,5 @@
-FROM composer:2
+# ----- Stage 1: Composer -----
+FROM composer:2 AS composer_stage
 
 WORKDIR /app
 
@@ -13,6 +14,7 @@ RUN composer install \
     --no-scripts
 
 
+# ----- Stage 2: PHP Runtime -----
 FROM php:8.3-fpm-bookworm
 
 WORKDIR /var/www/html
@@ -27,11 +29,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
-    && docker-php-ext-configure gd --with-jpeg --with-freetype \
-    && docker-php-ext-install pdo pdo_mysql pdo_pgsql gd zip bcmath pcntl opcache \
-    && pecl install apcu \
-    && docker-php-ext-enable apcu \
-    && rm -rf /var/lib/apt/lists/*
+ && docker-php-ext-configure gd --with-jpeg --with-freetype \
+ && docker-php-ext-install pdo pdo_mysql pdo_pgsql gd zip bcmath pcntl opcache \
+ && pecl install apcu \
+ && docker-php-ext-enable apcu \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN { \
     echo 'opcache.enable=1'; \
@@ -44,9 +46,10 @@ RUN { \
     echo 'opcache.fast_shutdown=1'; \
     echo 'opcache.jit=1205'; \
     echo 'opcache.jit_buffer_size=64M'; \
-    } > /usr/local/etc/php/conf.d/opcache.ini
+} > /usr/local/etc/php/conf.d/opcache.ini
 
-COPY --from=composer /app/vendor ./vendor
+# IMPORTANT: COPY FROM composer_stage (không phải composer)
+COPY --from=composer_stage /app/vendor ./vendor
 
 COPY . .
 
