@@ -5,6 +5,7 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 
 RUN composer install \
+    --ignore-platform-reqs \
     --no-dev \
     --no-interaction \
     --prefer-dist \
