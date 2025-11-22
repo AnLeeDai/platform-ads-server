@@ -25,7 +25,7 @@ class PointController extends Controller
         try {
             $user = auth()->user();
 
-            $point = $this->pointModel->where('user_id', $user->id)->first();
+            $point = $this->pointService->getPoint($user->id);
 
             if (!$point) {
                 return response()->json([
@@ -86,13 +86,11 @@ class PointController extends Controller
 
             $validated = $request->validated();
 
-            $this->pointService->addPoints(
+            $point = $this->pointService->addPoints(
                 $validated['user_id'],
                 $validated['amount'],
                 'System added points'
             );
-
-            $point = $this->pointModel->where('user_id', $validated['user_id'])->first();
 
             return response()->json([
                 'message' => 'Points added successfully',

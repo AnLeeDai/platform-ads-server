@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libzip-dev \
     && docker-php-ext-configure gd --with-jpeg --with-freetype \
     && docker-php-ext-install pdo pdo_mysql gd zip bcmath pcntl opcache \
+    && pecl install apcu \
+    && docker-php-ext-enable apcu \
     && rm -rf /var/lib/apt/lists/*
 
 RUN { \

@@ -5,13 +5,16 @@ namespace App\Services;
 use App\Models\Point;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class PointService
 {
-    public function addPoints(string $userId, int $amount, string $description = null): bool
+    protected $cacheTtl = 3600; // 1 hour
+
+    public function addPoints(string $userId, int $amount, string $description = null): Point
     {
-        return DB::transaction(function () use ($userId, $amount, $description) {
-            $point = Point::where('user_id', $userId)->first();
+        $point = DB::transaction(function () use ($userId, $amount, $description) {
+            $point = Point::where('user_id', $userId)->lockForUpdate()->first();
             if (!$point) {
                 throw new \Exception('Point record not found for user');
             }
@@ -32,14 +35,19 @@ class PointService
                 ],
             ]);
 
-            return true;
+            return $point;
         });
+
+        // Clear cache
+        Cache::forget("user_points_{$userId}");
+
+        return $point;
     }
 
-    public function subtractPoints(string $userId, int $amount, string $description = null, array $extraData = []): bool
+    public function subtractPoints(string $userId, int $amount, string $description = null, array $extraData = []): Point
     {
-        return DB::transaction(function () use ($userId, $amount, $description, $extraData) {
-            $point = Point::where('user_id', $userId)->first();
+        $point = DB::transaction(function () use ($userId, $amount, $description, $extraData) {
+            $point = Point::where('user_id', $userId)->lockForUpdate()->first();
             if (!$point) {
                 throw new \Exception('Point record not found for user');
             }
@@ -64,13 +72,25 @@ class PointService
                 ], $extraData),
             ]);
 
-            return true;
+            return $point;
+        });
+
+        // Clear cache
+        Cache::forget("user_points_{$userId}");
+
+        return $point;
+    }
+
+    public function getPoint(string $userId): Point
+    {
+        return Cache::remember("user_points_{$userId}", $this->cacheTtl, function () use ($userId) {
+            return Point::where('user_id', $userId)->first();
         });
     }
 
     public function getBalance(string $userId): int
     {
-        $point = Point::where('user_id', $userId)->first();
+        $point = $this->getPoint($userId);
         return $point ? $point->balance : 0;
     }
 }

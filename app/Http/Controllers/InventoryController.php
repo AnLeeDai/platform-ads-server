@@ -3,10 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Inventory;
+use App\Services\InventoryService;
 use Illuminate\Http\Request;
 
 class InventoryController extends Controller
 {
+    protected InventoryService $inventoryService;
+
+    public function __construct(InventoryService $inventoryService)
+    {
+        $this->inventoryService = $inventoryService;
+    }
+
     public function index(Request $request)
     {
         try {
@@ -15,9 +23,7 @@ class InventoryController extends Controller
             $per_page = (int) $request->query('per_page', 10);
             $page = (int) $request->query('page', 1);
 
-            $inventories = Inventory::with('storage')
-                ->where('user_id', $user->id)
-                ->simplePaginate($per_page, ['*'], 'page', $page)
+            $inventories = $this->inventoryService->getUserInventories($user->id, $per_page, $page)
                 ->through(function ($inventory) {
                     return [
                         'id' => $inventory->id,
@@ -46,18 +52,7 @@ class InventoryController extends Controller
         try {
             $user = auth()->user();
 
-            $inventory = Inventory::where('id', $id)->where('user_id', $user->id)->first();
-
-            if (!$inventory) {
-                return $this->errorResponse('Inventory item not found', 404);
-            }
-
-            if ($inventory->is_used) {
-                return $this->errorResponse('Item already used', 400);
-            }
-
-            $inventory->is_used = true;
-            $inventory->save();
+            $inventory = $this->inventoryService->markAsUsed($id, $user->id);
 
             return $this->successResponse($inventory, 'Item marked as used successfully');
         } catch (\Exception $e) {
