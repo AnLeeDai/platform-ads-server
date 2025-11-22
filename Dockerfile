@@ -24,13 +24,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     unzip \
     libpng-dev \
-    libjpeg-dev \
+    libjpeg62-turbo-dev \
     libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    libpq-dev \
  && docker-php-ext-configure gd --with-jpeg --with-freetype \
- && docker-php-ext-install pdo pdo_mysql pdo_pgsql gd zip bcmath pcntl opcache \
+ && docker-php-ext-install pdo_mysql pdo_pgsql gd zip bcmath pcntl opcache \
  && pecl install apcu \
  && docker-php-ext-enable apcu \
  && rm -rf /var/lib/apt/lists/*
@@ -48,16 +49,20 @@ RUN { \
     echo 'opcache.jit_buffer_size=64M'; \
 } > /usr/local/etc/php/conf.d/opcache.ini
 
-# IMPORTANT: COPY FROM composer_stage (không phải composer)
+
+# Copy vendor từ stage composer
 COPY --from=composer_stage /app/vendor ./vendor
 
+# Copy toàn bộ code Laravel
 COPY . .
 
+# Copy cấu hình Nginx + PHP-FPM + entrypoint
 COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY .docker/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+# Phân quyền Laravel
 RUN mkdir -p storage/framework storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
