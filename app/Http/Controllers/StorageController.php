@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoragePostRequest;
 use App\Http\Requests\StorageGetRequest;
+use App\Http\Requests\StoragePostRequest;
 use App\Http\Requests\StorageUpdateRequest;
 use App\Models\Storage;
 use App\Services\StorageService;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class StorageController extends Controller
 {
     private Storage $storageModel;
+
     private StorageService $storageService;
 
     public function __construct(Storage $storage, StorageService $storageService)
@@ -92,5 +92,4 @@ class StorageController extends Controller
             return $this->errorResponse(message: 'Server Error', status: 500, data: $e->getMessage());
         }
     }
-
 }

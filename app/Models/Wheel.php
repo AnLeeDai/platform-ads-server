@@ -2,25 +2,26 @@
 
 namespace App\Models;
 
+use App\Traits\Uuid;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\Uuid;
 
 class Wheel extends Model
 {
-    use Uuid;
     /** @use HasFactory<\Database\Factories\WheelFactory> */
     use HasFactory, Notifiable;
+
+    use Uuid;
 
     protected $fillable = [
         'storage_id',
         'start_degree',
-        'end_degree'
+        'end_degree',
     ];
 
     protected $hidden = [
-        'storage_id'
+        'storage_id',
     ];
 
     protected $appends = [
@@ -35,6 +36,7 @@ class Wheel extends Model
     public function getStorageAttribute()
     {
         $storage = $this->relationLoaded('storage') ? $this->relations['storage'] : $this->storage()->first();
+
         return $storage;
     }
 }

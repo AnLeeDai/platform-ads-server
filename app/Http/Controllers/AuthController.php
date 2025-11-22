@@ -3,15 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UserLoginRequest;
-use App\Models\User;
-use App\Models\Role;
 use App\Http\Requests\UserPostRequest;
-use Illuminate\Support\Facades\Hash;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-
     private User $userModel;
 
     private Role $roleModel;
@@ -24,13 +23,12 @@ class AuthController extends Controller
         $this->roleModel = $roleModel;
     }
 
-
     public function me()
     {
         try {
             $user = auth()->user();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->errorResponse(message: 'Unauthorized', status: 401);
             }
 
@@ -50,16 +48,15 @@ class AuthController extends Controller
 
             $user = $this->userModel->where('email', $email)->first();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->errorResponse(message: 'User not found', status: 404);
             }
 
-            if (!Hash::check($password, $user->password_hash)) {
+            if (! Hash::check($password, $user->password_hash)) {
                 return $this->errorResponse(message: 'Invalid password', status: 401);
             }
 
             Auth::login($user);
-
 
             return $this->successResponse(
                 data: ['user' => $user],
@@ -76,7 +73,6 @@ class AuthController extends Controller
     {
         try {
             $validated = $request->validated();
-
 
             $userRole = Role::where('name', 'user')->first();
 

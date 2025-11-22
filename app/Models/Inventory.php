@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Traits\Uuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Inventory extends Model
 {
-    use Uuid, HasFactory;
+    use HasFactory, Uuid;
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [

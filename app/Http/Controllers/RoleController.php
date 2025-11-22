@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Role;
-use App\Services\RoleService;
-// use App\Http\Requests\RolePostRequest;
 use App\Http\Requests\RoleGetRequest;
+use App\Models\Role;
+// use App\Http\Requests\RolePostRequest;
+use App\Services\RoleService;
 
 class RoleController extends Controller
 {
     private Role $roleModel;
+
     private RoleService $roleService;
 
     public function __construct(

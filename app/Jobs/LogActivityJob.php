@@ -11,7 +11,9 @@ class LogActivityJob implements ShouldQueue
     use Queueable;
 
     protected string $userId;
+
     protected string $action;
+
     protected array $data;
 
     /**

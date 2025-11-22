@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UserGetRequest;
 use App\Models\User;
 use App\Services\UserService;
-use App\Http\Requests\UserGetRequest;
 
 class UserController extends Controller
 {
-
     private User $userModel;
+
     private UserService $userService;
 
     public function __construct(

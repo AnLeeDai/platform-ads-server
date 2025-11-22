@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Point;
-use App\Services\PointService;
-use App\Models\Transaction;
 use App\Http\Requests\PointAddRequest;
+use App\Models\Point;
+use App\Models\Transaction;
+use App\Services\PointService;
 use Illuminate\Http\Request;
 
 class PointController extends Controller
 {
-
     protected Point $pointModel;
+
     protected PointService $pointService;
 
     public function __construct(Point $pointModel, PointService $pointService)
@@ -27,7 +27,7 @@ class PointController extends Controller
 
             $point = $this->pointService->getPoint($user->id);
 
-            if (!$point) {
+            if (! $point) {
                 return response()->json([
                     'message' => 'Point record not found for this user',
                 ], 404);
@@ -35,13 +35,13 @@ class PointController extends Controller
 
             return response()->json([
                 'message' => 'Point record retrieved successfully',
-                'data' => $point
+                'data' => $point,
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error fetching point record',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -61,13 +61,13 @@ class PointController extends Controller
 
             return response()->json([
                 'message' => 'Points retrieved successfully',
-                'data' => $points
+                'data' => $points,
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error fetching points',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -78,7 +78,7 @@ class PointController extends Controller
             $user = auth()->user();
 
             // Check if user is admin
-            if (!$user->role || $user->role['name'] !== 'admin') {
+            if (! $user->role || $user->role['name'] !== 'admin') {
                 return response()->json([
                     'message' => 'Unauthorized: Only admin can add points',
                 ], 403);
@@ -94,12 +94,12 @@ class PointController extends Controller
 
             return response()->json([
                 'message' => 'Points added successfully',
-                'data' => $point
+                'data' => $point,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error adding points',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -130,12 +130,12 @@ class PointController extends Controller
 
             return response()->json([
                 'message' => 'Transaction history retrieved successfully',
-                'data' => $transactions
+                'data' => $transactions,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error fetching transaction history',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

@@ -24,7 +24,7 @@ class InventoryService
     {
         $inventory = Inventory::where('id', $inventoryId)->where('user_id', $userId)->first();
 
-        if (!$inventory) {
+        if (! $inventory) {
             throw new \Exception('Inventory item not found');
         }
 

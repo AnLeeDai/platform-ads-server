@@ -3,12 +3,10 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Traits\Uuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\Role;
-use App\Models\Point;
-use App\Traits\Uuid;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -18,6 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     use Uuid;
+
     /**
      * Model key type is string (UUID).
      *
@@ -31,8 +30,9 @@ class User extends Authenticatable
      * @var bool
      */
     public $incrementing = false;
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected static function boot()
     {

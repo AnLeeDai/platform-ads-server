@@ -2,22 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\WheelStoreRequest;
+use App\Models\Inventory;
 use App\Models\Storage;
 use App\Models\Wheel;
-use App\Models\Inventory;
 use App\Services\PointService;
-use App\Http\Requests\WheelStoreRequest;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class WheelController extends Controller
 {
     private Wheel $wheelModel;
+
     private Storage $storageModel;
+
     private PointService $pointService;
 
     private const string CACHE_KEY_WHEELS = 'wheel_segments_with_storage';
+
     private const string CACHE_KEY_WHEELS_SPIN_META = 'wheel_segments_spin_meta';
 
     public function __construct(
@@ -82,7 +84,7 @@ class WheelController extends Controller
         unset($entry);
 
         // Sort weights by cum for binary search
-        usort($weightEntries, fn($a, $b) => $a['cum'] <=> $b['cum']);
+        usort($weightEntries, fn ($a, $b) => $a['cum'] <=> $b['cum']);
 
         $cumDeg = 0;
         foreach ($degreeEntries as &$entry) {
@@ -103,6 +105,7 @@ class WheelController extends Controller
     {
         return Cache::rememberForever(self::CACHE_KEY_WHEELS_SPIN_META, function () {
             $wheels = $this->getWheelSegmentsFromCache();
+
             return $this->buildSpinMeta($wheels);
         });
     }
@@ -120,7 +123,7 @@ class WheelController extends Controller
 
     private function filterStorageForUser(?array $storage): ?array
     {
-        if (!is_array($storage)) {
+        if (! is_array($storage)) {
             return $storage;
         }
 
@@ -193,7 +196,7 @@ class WheelController extends Controller
         try {
             $validated = $request->validated();
 
-            if (!empty($validated['import_all']) && $validated['import_all'] === true) {
+            if (! empty($validated['import_all']) && $validated['import_all'] === true) {
                 $storages = $this->storageModel::select('id')->get();
 
                 if ($storages->isEmpty()) {
@@ -275,7 +278,7 @@ class WheelController extends Controller
                 'end_degree' => $endDegree,
             ]);
 
-            if (!$wheel) {
+            if (! $wheel) {
                 return $this->errorResponse('Failed to create wheel', 500);
             }
 
@@ -314,7 +317,7 @@ class WheelController extends Controller
             $user = auth()->user();
 
             $point = $user->point;
-            if (!$point) {
+            if (! $point) {
                 return $this->errorResponse('User point not found', 404);
             }
 
@@ -360,7 +363,7 @@ class WheelController extends Controller
                     }
                     $chosenWheel = $wheels[$meta['weights'][$chosenIndex]['index']] ?? null;
 
-                    if (!$chosenWheel) {
+                    if (! $chosenWheel) {
                         $lastIndex = array_key_last($wheels);
                         $chosenWheel = $wheels[$lastIndex];
                     }
@@ -377,7 +380,7 @@ class WheelController extends Controller
                         }
                     }
 
-                    if (!$chosenWheel) {
+                    if (! $chosenWheel) {
                         $lastIndex = array_key_last($wheels);
                         $chosenWheel = $wheels[$lastIndex];
                     }
@@ -404,7 +407,7 @@ class WheelController extends Controller
                 if ($storage && isset($storage['id'])) {
                     // Sử dụng lock để đảm bảo atomic
                     $storageModel = Storage::where('id', $storage['id'])->lockForUpdate()->first();
-                    if (!$storageModel || $storageModel->quantity <= 0) {
+                    if (! $storageModel || $storageModel->quantity <= 0) {
                         // Không đủ quantity, coi như miss
                         $isWin = false;
                         $storage = null;
@@ -440,7 +443,7 @@ class WheelController extends Controller
             $description = 'Spin wheel cost';
             $extraData = [];
             if ($isWin && $storage) {
-                $description .= ' (Won: ' . $storage['name'] . ')';
+                $description .= ' (Won: '.$storage['name'].')';
                 $extraData = [
                     'won_item' => [
                         'id' => $storage['id'],

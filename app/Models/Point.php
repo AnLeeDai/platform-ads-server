@@ -2,22 +2,22 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Traits\Uuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 
 class Point extends Model
 {
-    use Uuid;
     use HasFactory, Notifiable;
+    use Uuid;
 
     protected $fillable = [
         'balance',
     ];
 
     protected $appends = [
-        'user'
+        'user',
     ];
 
     public function user()
@@ -28,6 +28,7 @@ class Point extends Model
     public function getUserAttribute()
     {
         $user = ($this->relationLoaded('user')) ? $this->getRelationValue('user') : $this->user()->first();
+
         return $user;
     }
 }
