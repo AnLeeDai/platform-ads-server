@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Role;
+use App\Models\Point;
 use App\Traits\Uuid;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -32,6 +33,15 @@ class User extends Authenticatable
     public $incrementing = false;
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($user) {
+            $user->point()->create(['balance' => 0]);
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -86,9 +96,24 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class, 'role_id');
     }
 
+    public function point()
+    {
+        return $this->hasOne(Point::class, 'user_id');
+    }
+
+    public function inventories()
+    {
+        return $this->hasMany(Inventory::class, 'user_id');
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class, 'user_id');
+    }
+
     public function getRoleAttribute()
     {
-        $role = ($this->relationLoaded('role')) ? $this->getRelationValue('role') : $this->role()->first();
+        $role = ($this->relationLoaded('roles')) ? $this->getRelationValue('role') : $this->role()->first();
 
         return $role?->only(['id', 'name']);
     }

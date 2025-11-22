@@ -23,7 +23,6 @@ class UserController extends Controller
             $page = (int) $request->query('page', 1);
 
             $users = $this->userModel->whereHas('role', function ($q) {
-                $q->where('name', '!=', 'admin');
             })->simplePaginate($per_page, ['*'], 'page', $page);
 
             if ($users->isEmpty()) {

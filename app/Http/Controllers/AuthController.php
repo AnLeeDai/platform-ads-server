@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Models\Role;
 use App\Http\Requests\UserPostRequest;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth; // Cần import Auth facade
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {

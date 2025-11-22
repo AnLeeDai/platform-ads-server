@@ -22,4 +22,9 @@ class Storage extends Model
         'interest_rate',
         'expired_date',
     ];
+
+    public function inventories()
+    {
+        return $this->hasMany(Inventory::class, 'storage_id');
+    }
 }

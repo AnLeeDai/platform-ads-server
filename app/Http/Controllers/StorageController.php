@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoragePostRequest;
 use App\Http\Requests\StorageGetRequest;
+use App\Http\Requests\StorageUpdateRequest;
 use App\Models\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -78,14 +79,10 @@ class StorageController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(StorageUpdateRequest $request, $id)
     {
         try {
-            $validated = $request->validate([
-                'name' => 'sometimes|string|max:255',
-                'quantity' => 'sometimes|integer|min:0',
-                'interest_rate' => 'required|numeric|min:0',
-            ]);
+            $validated = $request->validated();
 
             $storage = $this->storageModel->find($id);
 

@@ -12,7 +12,7 @@ return new class extends Migration {
     {
         Schema::create('users', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('role_id')->nullable()->index();
+            $table->uuid('role_id')->index();
             $table->char('user_name')->unique();
             $table->char('email')->unique()->index();
             $table->string('avatar_url')->nullable();
