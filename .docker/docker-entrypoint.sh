@@ -52,7 +52,7 @@ group = www-data
 
 listen = 127.0.0.1:9000
 listen.mode = 0660
-listen.allowed_clients = any
+listen.allowed_clients = 127.0.0.1, ::1
 
 pm = dynamic
 pm.max_children = ${PHP_FPM_MAX_CHILDREN}
