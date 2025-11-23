@@ -15,26 +15,26 @@ else
 fi
 
 if [ -z "${APP_KEY:-}" ]; then
-  if ! grep -q "APP_KEY=" .env 2>/dev/null || [ "$(grep -E "APP_KEY=.*" .env | sed -n '1p' | cut -d'=' -f2)" = "" ]; then
+  if ! grep -q "APP_KEY=" .env || [ "$(grep -E "APP_KEY=.*" .env | cut -d'=' -f2)" = "" ]; then
     echo "[entrypoint] Generating APP_KEY"
-    php artisan key:generate --force || echo "[entrypoint] Failed to generate APP_KEY"
+    php artisan key:generate --force || true
   fi
 fi
 
 if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
-  echo "[entrypoint] Running migrations..."
-  php artisan migrate --force || echo "[entrypoint] Migration failed"
+    echo "[entrypoint] Running migrations..."
+    php artisan migrate --force || true
 fi
 
 if [ ! -L public/storage ]; then
   echo "[entrypoint] Creating storage symlink..."
-  php artisan storage:link || echo "[entrypoint] Failed to create storage symlink"
+  php artisan storage:link || true
 fi
 
 echo "[entrypoint] Caching Laravel config/routes/views..."
-php artisan config:cache || echo "[entrypoint] config:cache failed"
-php artisan route:cache || echo "[entrypoint] route:cache failed"
-php artisan view:cache || echo "[entrypoint] view:cache failed"
+php artisan config:cache || true
+php artisan route:cache || true
+php artisan view:cache || true
 
 chown -R www-data:www-data storage bootstrap/cache || true
 
@@ -50,8 +50,7 @@ cat > /usr/local/etc/php-fpm.d/www.conf <<EOF
 user = www-data
 group = www-data
 
-listen = 9000
-listen.backlog = 65535
+listen = 127.0.0.1:9000
 listen.mode = 0660
 listen.allowed_clients = 127.0.0.1
 
@@ -71,21 +70,22 @@ clear_env = no
 slowlog = /proc/self/fd/2
 request_slowlog_timeout = 5s
 
+php_admin_value[memory_limit] = 256M
+php_admin_value[upload_max_filesize] = 100M
+php_admin_value[post_max_size] = 100M
+php_admin_value[max_execution_time] = 30
 php_admin_value[error_log] = /proc/self/fd/2
 php_admin_flag[log_errors] = on
 EOF
 
-echo "[entrypoint] PHP-FPM auto tuned: cores=${CPU_CORES}, max_children=${PHP_FPM_MAX_CHILDREN}"
+echo "[entrypoint] PHP-FPM tuned: cores=${CPU_CORES}"
 
-echo "[entrypoint] Starting php-fpm..."
 php-fpm -D
 
 if [ -n "${PORT:-}" ]; then
-  echo "[entrypoint] Setting nginx to listen on port ${PORT}"
-  sed -i "s/__PORT__/${PORT}/g" /etc/nginx/conf.d/default.conf || true
+  sed -i "s/__PORT__/${PORT}/g" /etc/nginx/conf.d/default.conf
 else
-  echo "[entrypoint] PORT not set, using default 8080"
-  sed -i "s/__PORT__/8080/g" /etc/nginx/conf.d/default.conf || true
+  sed -i "s/__PORT__/8080/g" /etc/nginx/conf.d/default.conf
 fi
 
 exec "$@"

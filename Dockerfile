@@ -2,7 +2,6 @@
 FROM composer:2 AS composer_stage
 
 WORKDIR /app
-
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -10,8 +9,7 @@ RUN composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
-    --optimize-autoloader \
-    --no-scripts
+    --optimize-autoloader
 
 
 # ----- Stage 2: PHP Runtime -----
@@ -43,26 +41,22 @@ RUN { \
     echo 'opcache.interned_strings_buffer=16'; \
     echo 'opcache.max_accelerated_files=50000'; \
     echo 'opcache.validate_timestamps=0'; \
-    echo 'opcache.revalidate_path=0'; \
     echo 'opcache.fast_shutdown=1'; \
-    echo 'opcache.jit=1205'; \
-    echo 'opcache.jit_buffer_size=64M'; \
 } > /usr/local/etc/php/conf.d/opcache.ini
 
 
-# Copy vendor từ stage composer
+# Copy vendor từ Composer stage
 COPY --from=composer_stage /app/vendor ./vendor
 
-# Copy toàn bộ code Laravel
+# Copy toàn bộ mã nguồn
 COPY . .
 
-# Copy cấu hình Nginx + PHP-FPM + entrypoint
+# Copy cấu hình
 COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY .docker/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Phân quyền Laravel
+# Laravel storage permission
 RUN mkdir -p storage/framework storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
