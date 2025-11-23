@@ -5,8 +5,15 @@ use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 
 Route::get('/sanctum/csrf-cookie', [CsrfCookieController::class, 'show']);
 
-Route::post('/auth/register', [App\Http\Controllers\AuthController::class, 'store']);
-Route::post('/auth/login', [App\Http\Controllers\AuthController::class, 'index']);
+Route::prefix('auth')->group(function () {
+    Route::post('/register', [App\Http\Controllers\AuthController::class, 'store']);
+    Route::post('/login', [App\Http\Controllers\AuthController::class, 'index']);
+
+});
+
+Route::prefix('ads')->group(function () {
+    Route::get('/', [App\Http\Controllers\AdsController::class, 'index']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     // Admin Routes
@@ -31,6 +38,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::prefix('points')->group(function () {
             Route::post('/', [App\Http\Controllers\PointController::class, 'store']);
+        });
+
+        Route::prefix('ads')->group(function () {
+            Route::post('/', [App\Http\Controllers\AdsController::class, 'store']);
         });
     });
 

@@ -33,8 +33,7 @@ class StorageService
             $created[] = Storage::create($item);
         }
 
-        // Clear cache
-        Cache::flush(); // Or specific keys, but for simplicity
+        Cache::flush();
 
         return $created;
     }
@@ -42,7 +41,7 @@ class StorageService
     public function updateStorage(int $id, array $data): Storage
     {
         $storage = Storage::find($id);
-        if (! $storage) {
+        if (!$storage) {
             throw new \Exception('Storage not found');
         }
 
