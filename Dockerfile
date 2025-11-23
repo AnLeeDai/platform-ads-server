@@ -2,12 +2,14 @@
 FROM composer:2 AS composer_stage
 
 WORKDIR /app
+
 COPY composer.json composer.lock ./
 
 RUN composer install \
     --ignore-platform-reqs \
     --no-dev \
     --no-interaction \
+    --no-scripts \
     --prefer-dist \
     --optimize-autoloader
 
@@ -34,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && docker-php-ext-enable apcu \
  && rm -rf /var/lib/apt/lists/*
 
+# Opcache tối ưu cho production
 RUN { \
     echo 'opcache.enable=1'; \
     echo 'opcache.enable_cli=0'; \
@@ -44,19 +47,18 @@ RUN { \
     echo 'opcache.fast_shutdown=1'; \
 } > /usr/local/etc/php/conf.d/opcache.ini
 
-
 # Copy vendor từ Composer stage
 COPY --from=composer_stage /app/vendor ./vendor
 
-# Copy toàn bộ mã nguồn
+# Copy toàn bộ source Laravel
 COPY . .
 
-# Copy cấu hình
+# Copy cấu hình nginx & entrypoint
 COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Laravel storage permission
+# Phân quyền cho Laravel
 RUN mkdir -p storage/framework storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
