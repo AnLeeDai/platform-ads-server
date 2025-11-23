@@ -13,9 +13,7 @@ class AdsService
     {
         $cacheKey = "ads_page_{$page}_per_{$perPage}";
 
-        return Cache::remember($cacheKey, $this->cacheTtl, function () use ($perPage, $page) {
-            return Ads::simplePaginate($perPage, ['*'], 'page', $page);
-        });
+        return Cache::remember($cacheKey, $this->cacheTtl, fn() => Ads::simplePaginate($perPage, ['*'], 'page', $page));
     }
 
     public function createAd(array $data): Ads

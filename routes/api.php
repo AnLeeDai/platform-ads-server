@@ -3,12 +3,19 @@
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 
+Route::get('/check-config', function () {
+    return response()->json([
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+        'post_max_size' => ini_get('post_max_size'),
+        'file_ini_dang_dung' => php_ini_loaded_file(),
+    ]);
+});
+
 Route::get('/sanctum/csrf-cookie', [CsrfCookieController::class, 'show']);
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [App\Http\Controllers\AuthController::class, 'store']);
     Route::post('/login', [App\Http\Controllers\AuthController::class, 'index']);
-
 });
 
 Route::prefix('ads')->group(function () {
@@ -63,5 +70,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('wheels')->group(function () {
         Route::get('/', [App\Http\Controllers\WheelController::class, 'index']);
         Route::post('/spin', [App\Http\Controllers\WheelController::class, 'startSpin']);
+    });
+
+    Route::prefix('upload-cloud')->group(function () {
+        Route::post('/upload_image', [App\Http\Controllers\CloudFlareController::class, 'upload_image']);
+        Route::post('/upload_video', [App\Http\Controllers\CloudFlareController::class, 'upload_video']);
     });
 });

@@ -13,50 +13,28 @@ RUN composer install \
     --optimize-autoloader
 
 
-FROM php:8.3-fpm-bookworm
+FROM dunglas/frankenphp:1-php8.3
 
-WORKDIR /var/www/html
+WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx \
-    git \
-    unzip \
-    libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    libpq-dev \
- && docker-php-ext-configure gd --with-jpeg --with-freetype \
- && docker-php-ext-install pdo_mysql pdo_pgsql gd zip bcmath pcntl opcache \
- && pecl install apcu \
- && docker-php-ext-enable apcu \
- && rm -rf /var/lib/apt/lists/*
-
-RUN { \
-    echo 'opcache.enable=1'; \
-    echo 'opcache.enable_cli=0'; \
-    echo 'opcache.memory_consumption=256'; \
-    echo 'opcache.interned_strings_buffer=16'; \
-    echo 'opcache.max_accelerated_files=50000'; \
-    echo 'opcache.validate_timestamps=0'; \
-    echo 'opcache.fast_shutdown=1'; \
-} > /usr/local/etc/php/conf.d/opcache.ini
-
-COPY --from=composer_stage /app/vendor ./vendor
+RUN install-php-extensions \
+    pdo_mysql \
+    pdo_pgsql \
+    gd \
+    zip \
+    bcmath \
+    pcntl \
+    opcache
 
 COPY . .
-
-COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY --from=composer_stage /app/vendor ./vendor
 
 RUN mkdir -p storage/framework storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
-ENV PORT=8080
-EXPOSE 8080
+COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 8000
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["nginx", "-g", "daemon off;"]
