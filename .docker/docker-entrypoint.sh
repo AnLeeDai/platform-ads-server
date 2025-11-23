@@ -1,4 +1,3 @@
-#!/usr/bin/env sh
 set -e
 
 cd /var/www/html
@@ -52,7 +51,7 @@ group = www-data
 
 listen = 127.0.0.1:9000
 listen.mode = 0660
-listen.allowed_clients = 127.0.0.1
+listen.allowed_clients = any
 
 pm = dynamic
 pm.max_children = ${PHP_FPM_MAX_CHILDREN}

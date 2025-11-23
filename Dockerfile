@@ -1,4 +1,3 @@
-# ----- Stage 1: Composer -----
 FROM composer:2 AS composer_stage
 
 WORKDIR /app
@@ -14,7 +13,6 @@ RUN composer install \
     --optimize-autoloader
 
 
-# ----- Stage 2: PHP Runtime -----
 FROM php:8.3-fpm-bookworm
 
 WORKDIR /var/www/html
@@ -36,7 +34,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && docker-php-ext-enable apcu \
  && rm -rf /var/lib/apt/lists/*
 
-# Opcache tối ưu cho production
 RUN { \
     echo 'opcache.enable=1'; \
     echo 'opcache.enable_cli=0'; \
@@ -47,18 +44,14 @@ RUN { \
     echo 'opcache.fast_shutdown=1'; \
 } > /usr/local/etc/php/conf.d/opcache.ini
 
-# Copy vendor từ Composer stage
 COPY --from=composer_stage /app/vendor ./vendor
 
-# Copy toàn bộ source Laravel
 COPY . .
 
-# Copy cấu hình nginx & entrypoint
 COPY .docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY .docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Phân quyền cho Laravel
 RUN mkdir -p storage/framework storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
