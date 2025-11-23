@@ -2,18 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Http\Requests\UserGetRequest;
+use App\Models\User;
+use App\Services\UserService;
 
 class UserController extends Controller
 {
-
     private User $userModel;
 
+    private UserService $userService;
+
     public function __construct(
-        User $userModel
+        User $userModel,
+        UserService $userService
     ) {
         $this->userModel = $userModel;
+        $this->userService = $userService;
     }
 
     public function index(UserGetRequest $request)
@@ -22,9 +26,7 @@ class UserController extends Controller
             $per_page = (int) $request->query('per_page', 10);
             $page = (int) $request->query('page', 1);
 
-            $users = $this->userModel->whereHas('role', function ($q) {
-                $q->where('name', '!=', 'admin');
-            })->simplePaginate($per_page, ['*'], 'page', $page);
+            $users = $this->userService->getUsers($per_page, $page);
 
             if ($users->isEmpty()) {
                 return $this->errorResponse('No users found', 404);

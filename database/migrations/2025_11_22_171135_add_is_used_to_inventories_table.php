@@ -11,12 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('wheels', function (Blueprint $table) {
-            $table->uuid('id')->primary()->index();
-            $table->uuid('storage_id')->nullable()->index();
-            $table->integer('start_degree')->default(0);
-            $table->integer('end_degree')->default(0);
-            $table->timestamps();
+        Schema::table('inventories', function (Blueprint $table) {
+            $table->boolean('is_used')->default(false)->after('quantity');
         });
     }
 
@@ -25,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('wheels');
+        Schema::table('inventories', function (Blueprint $table) {
+            $table->dropColumn('is_used');
+        });
     }
 };

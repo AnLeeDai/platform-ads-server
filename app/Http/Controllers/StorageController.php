@@ -2,19 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoragePostRequest;
 use App\Http\Requests\StorageGetRequest;
+use App\Http\Requests\StoragePostRequest;
+use App\Http\Requests\StorageUpdateRequest;
 use App\Models\Storage;
-use Illuminate\Http\Request;
+use App\Services\StorageService;
 use Illuminate\Support\Facades\DB;
 
 class StorageController extends Controller
 {
     private Storage $storageModel;
 
-    public function __construct(Storage $storage)
+    private StorageService $storageService;
+
+    public function __construct(Storage $storage, StorageService $storageService)
     {
         $this->storageModel = $storage;
+        $this->storageService = $storageService;
     }
 
     public function index(StorageGetRequest $request)
@@ -25,21 +29,18 @@ class StorageController extends Controller
             $per_page = $validated['per_page'];
             $page = $validated['page'];
 
+            $data = $this->storageService->getStorages($per_page, $page);
 
-            $storages = $this->storageModel->simplePaginate($per_page, ['*'], 'page', $page);
-            $totalItems = $this->storageModel->count();
-            $totalQuantity = $this->storageModel->sum('quantity');
-
-            if ($storages->isEmpty()) {
+            if ($data['storages']->isEmpty()) {
                 return $this->errorResponse('No storages found', 404);
             }
 
             return $this->successResponse(
                 message: 'Storages retrieved successfully',
                 data: [
-                    'total_items' => $totalItems,
-                    'total_quantity' => $totalQuantity,
-                    'items' => $storages,
+                    'total_items' => $data['total_items'],
+                    'total_quantity' => $data['total_quantity'],
+                    'items' => $data['storages'],
                 ]
             );
         } catch (\Exception $e) {
@@ -54,10 +55,7 @@ class StorageController extends Controller
 
             DB::beginTransaction();
 
-            $created = [];
-            foreach ($validated as $item) {
-                $created[] = $this->storageModel->create($item);
-            }
+            $created = $this->storageService->createStorages($validated);
 
             DB::commit();
 
@@ -78,22 +76,12 @@ class StorageController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(StorageUpdateRequest $request, $id)
     {
         try {
-            $validated = $request->validate([
-                'name' => 'sometimes|string|max:255',
-                'quantity' => 'sometimes|integer|min:0',
-                'interest_rate' => 'required|numeric|min:0',
-            ]);
+            $validated = $request->validated();
 
-            $storage = $this->storageModel->find($id);
-
-            if (!$storage) {
-                return $this->errorResponse(message: 'Storage not found', status: 404);
-            }
-
-            $storage->update($validated);
+            $storage = $this->storageService->updateStorage($id, $validated);
 
             return $this->successResponse(
                 message: 'Storage updated successfully',
@@ -104,5 +92,4 @@ class StorageController extends Controller
             return $this->errorResponse(message: 'Server Error', status: 500, data: $e->getMessage());
         }
     }
-
 }

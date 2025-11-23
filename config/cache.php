@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'default' => env('CACHE_STORE', 'database'),
+    'default' => env('CACHE_STORE', 'apc'),
 
     /*
     |--------------------------------------------------------------------------
@@ -34,9 +34,8 @@ return [
 
     'stores' => [
 
-        'array' => [
-            'driver' => 'array',
-            'serialize' => false,
+        'apc' => [
+            'driver' => 'apc',
         ],
 
         'database' => [

@@ -2,33 +2,42 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\WheelStoreRequest;
+use App\Models\Inventory;
 use App\Models\Storage;
 use App\Models\Wheel;
-use Illuminate\Http\Request;
+use App\Services\PointService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class WheelController extends Controller
 {
     private Wheel $wheelModel;
+
     private Storage $storageModel;
 
+    private PointService $pointService;
+
     private const string CACHE_KEY_WHEELS = 'wheel_segments_with_storage';
+
     private const string CACHE_KEY_WHEELS_SPIN_META = 'wheel_segments_spin_meta';
 
     public function __construct(
         Wheel $wheelModel,
-        Storage $storageModel
+        Storage $storageModel,
+        PointService $pointService
     ) {
         $this->wheelModel = $wheelModel;
         $this->storageModel = $storageModel;
+        $this->pointService = $pointService;
     }
 
     private function getWheelSegmentsFromCache(): array
     {
         return Cache::rememberForever(self::CACHE_KEY_WHEELS, function () {
             return $this->wheelModel
-                ->with('storage')
-                ->get()
+                ->with('storage:id,name,description,item_type,expired_date,quantity')
+                ->get(['id', 'storage_id', 'start_degree', 'end_degree'])
                 ->toArray();
         });
     }
@@ -74,6 +83,9 @@ class WheelController extends Controller
         }
         unset($entry);
 
+        // Sort weights by cum for binary search
+        usort($weightEntries, fn ($a, $b) => $a['cum'] <=> $b['cum']);
+
         $cumDeg = 0;
         foreach ($degreeEntries as &$entry) {
             $cumDeg += $entry['size'];
@@ -93,6 +105,7 @@ class WheelController extends Controller
     {
         return Cache::rememberForever(self::CACHE_KEY_WHEELS_SPIN_META, function () {
             $wheels = $this->getWheelSegmentsFromCache();
+
             return $this->buildSpinMeta($wheels);
         });
     }
@@ -110,7 +123,7 @@ class WheelController extends Controller
 
     private function filterStorageForUser(?array $storage): ?array
     {
-        if (!is_array($storage)) {
+        if (! is_array($storage)) {
             return $storage;
         }
 
@@ -178,15 +191,12 @@ class WheelController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function store(WheelStoreRequest $request)
     {
         try {
-            $validated = $request->validate([
-                'storage_id' => 'nullable|uuid|exists:storages,id',
-                'import_all' => 'nullable|boolean',
-            ]);
+            $validated = $request->validated();
 
-            if (!empty($validated['import_all']) && $validated['import_all'] === true) {
+            if (! empty($validated['import_all']) && $validated['import_all'] === true) {
                 $storages = $this->storageModel::select('id')->get();
 
                 if ($storages->isEmpty()) {
@@ -268,7 +278,7 @@ class WheelController extends Controller
                 'end_degree' => $endDegree,
             ]);
 
-            if (!$wheel) {
+            if (! $wheel) {
                 return $this->errorResponse('Failed to create wheel', 500);
             }
 
@@ -304,6 +314,19 @@ class WheelController extends Controller
     public function startSpin()
     {
         try {
+            $user = auth()->user();
+
+            $point = $user->point;
+            if (! $point) {
+                return $this->errorResponse('User point not found', 404);
+            }
+
+            $spinCost = 27;
+            if ($point->balance < $spinCost) {
+                return $this->errorResponse('Không đủ điểm để quay thưởng', 400);
+            }
+
+            // Thực hiện spin trước
             $wheels = $this->getWheelSegmentsFromCache();
 
             if (empty($wheels)) {
@@ -313,69 +336,128 @@ class WheelController extends Controller
             $meta = $this->getWheelSpinMetaFromCache();
 
             $missChancePercent = 5;
+            $isWin = true;
             if (rand(1, 100) <= $missChancePercent) {
                 $degree = rand(0, 359);
-
-                return $this->successResponse([
-                    'is_win' => false,
-                    'degree' => $degree,
-                    'storage' => null,
-                ], 'No prize (miss)');
+                $isWin = false;
             }
 
             $chosenWheel = null;
+            $storage = null;
 
-            if ($meta['total_weight'] > 0) {
-                $r = lcg_value() * $meta['total_weight'];
-                foreach ($meta['weights'] as $entry) {
-                    if ($r <= $entry['cum']) {
-                        $chosenWheel = $wheels[$entry['index']] ?? null;
-                        break;
+            if ($isWin) {
+                if ($meta['total_weight'] > 0) {
+                    $r = lcg_value() * $meta['total_weight'];
+                    // Binary search for the chosen index
+                    $low = 0;
+                    $high = count($meta['weights']) - 1;
+                    $chosenIndex = $high; // default to last
+                    while ($low <= $high) {
+                        $mid = intdiv($low + $high, 2);
+                        if ($meta['weights'][$mid]['cum'] < $r) {
+                            $low = $mid + 1;
+                        } else {
+                            $chosenIndex = $mid;
+                            $high = $mid - 1;
+                        }
+                    }
+                    $chosenWheel = $wheels[$meta['weights'][$chosenIndex]['index']] ?? null;
+
+                    if (! $chosenWheel) {
+                        $lastIndex = array_key_last($wheels);
+                        $chosenWheel = $wheels[$lastIndex];
+                    }
+                } else {
+                    if ($meta['total_degrees'] <= 0) {
+                        return $this->errorResponse('Invalid wheel configuration', 500);
+                    }
+
+                    $r = rand(0, $meta['total_degrees'] - 1);
+                    foreach ($meta['degrees'] as $entry) {
+                        if ($r < $entry['cum']) {
+                            $chosenWheel = $wheels[$entry['index']] ?? null;
+                            break;
+                        }
+                    }
+
+                    if (! $chosenWheel) {
+                        $lastIndex = array_key_last($wheels);
+                        $chosenWheel = $wheels[$lastIndex];
                     }
                 }
 
-                if (!$chosenWheel) {
-                    $lastIndex = array_key_last($wheels);
-                    $chosenWheel = $wheels[$lastIndex];
-                }
-            } else {
-                if ($meta['total_degrees'] <= 0) {
-                    return $this->errorResponse('Invalid wheel configuration', 500);
+                $s = (int) $chosenWheel['start_degree'];
+                $e = (int) $chosenWheel['end_degree'];
+
+                if ($s <= $e) {
+                    $degree = rand($s, $e);
+                } else {
+                    $part1 = 360 - $s;
+                    $part2 = $e + 1;
+                    $total = $part1 + $part2;
+                    $r = rand(0, $total - 1);
+
+                    $degree = ($r < $part1) ? $s + $r : $r - $part1;
                 }
 
-                $r = rand(0, $meta['total_degrees'] - 1);
-                foreach ($meta['degrees'] as $entry) {
-                    if ($r < $entry['cum']) {
-                        $chosenWheel = $wheels[$entry['index']] ?? null;
-                        break;
+                $storage = $chosenWheel['storage'] ?? null;
+                $storage = \is_array($storage) ? $this->transformStorageForResponse($storage) : $storage;
+
+                // Nếu thắng và có storage, xử lý inventory
+                if ($storage && isset($storage['id'])) {
+                    // Sử dụng lock để đảm bảo atomic
+                    $storageModel = Storage::where('id', $storage['id'])->lockForUpdate()->first();
+                    if (! $storageModel || $storageModel->quantity <= 0) {
+                        // Không đủ quantity, coi như miss
+                        $isWin = false;
+                        $storage = null;
+                    } else {
+                        // Sử dụng transaction để đảm bảo
+                        DB::transaction(function () use ($user, $storageModel) {
+                            // Trừ quantity trong storage
+                            $storageModel->decrement('quantity');
+
+                            // Thêm vào inventory
+                            $inventory = Inventory::where('user_id', $user->id)
+                                ->where('storage_id', $storageModel->id)
+                                ->lockForUpdate()
+                                ->first();
+
+                            if ($inventory) {
+                                $inventory->increment('quantity');
+                            } else {
+                                Inventory::create([
+                                    'user_id' => $user->id,
+                                    'storage_id' => $storageModel->id,
+                                    'quantity' => 1,
+                                ]);
+                            }
+                        });
                     }
                 }
-
-                if (!$chosenWheel) {
-                    $lastIndex = array_key_last($wheels);
-                    $chosenWheel = $wheels[$lastIndex];
-                }
-            }
-
-            $s = (int) $chosenWheel['start_degree'];
-            $e = (int) $chosenWheel['end_degree'];
-
-            if ($s <= $e) {
-                $degree = rand($s, $e);
             } else {
-                $part1 = 360 - $s;
-                $part2 = $e + 1;
-                $total = $part1 + $part2;
-                $r = rand(0, $total - 1);
-
-                $degree = ($r < $part1) ? $s + $r : $r - $part1;
+                $degree = rand(0, 359);
             }
 
-            $storage = $chosenWheel['storage'] ?? null;
-            $storage = \is_array($storage) ? $this->transformStorageForResponse($storage) : $storage;
+            // Trừ điểm sau khi spin
+            $description = 'Spin wheel cost';
+            $extraData = [];
+            if ($isWin && $storage) {
+                $description .= ' (Won: '.$storage['name'].')';
+                $extraData = [
+                    'won_item' => [
+                        'id' => $storage['id'],
+                        'name' => $storage['name'],
+                        'description' => $storage['description'] ?? null,
+                        'item_type' => $storage['item_type'] ?? null,
+                        'expired_date' => $storage['expired_date'] ?? null,
+                    ],
+                ];
+            }
+            $this->pointService->subtractPoints($user->id, $spinCost, $description, $extraData);
 
             return $this->successResponse([
-                'is_win' => true,
+                'is_win' => $isWin,
                 'degree' => $degree,
                 'storage' => $storage,
             ], 'Spin result');

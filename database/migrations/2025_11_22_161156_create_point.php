@@ -11,11 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('wheels', function (Blueprint $table) {
+        Schema::create('points', function (Blueprint $table) {
             $table->uuid('id')->primary()->index();
-            $table->uuid('storage_id')->nullable()->index();
-            $table->integer('start_degree')->default(0);
-            $table->integer('end_degree')->default(0);
+            $table->uuid('user_id')->index();
+            $table->bigInteger('balance')->default(0);
             $table->timestamps();
         });
     }
@@ -25,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('wheels');
+        Schema::dropIfExists('points');
     }
 };

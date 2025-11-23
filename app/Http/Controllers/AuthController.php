@@ -3,14 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UserLoginRequest;
-use App\Models\User;
-use App\Models\Role;
 use App\Http\Requests\UserPostRequest;
+use App\Models\Role;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-
     private User $userModel;
 
     private Role $roleModel;
@@ -23,13 +23,12 @@ class AuthController extends Controller
         $this->roleModel = $roleModel;
     }
 
-
     public function me()
     {
         try {
             $user = auth()->user();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->errorResponse(message: 'Unauthorized', status: 401);
             }
 
@@ -49,22 +48,21 @@ class AuthController extends Controller
 
             $user = $this->userModel->where('email', $email)->first();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->errorResponse(message: 'User not found', status: 404);
             }
 
-            if (!Hash::check($password, $user->password_hash)) {
+            if (! Hash::check($password, $user->password_hash)) {
                 return $this->errorResponse(message: 'Invalid password', status: 401);
             }
 
-            $token = $user->createToken('auth_token')->plainTextToken;
+            Auth::login($user);
 
-            $data = [
-                'token' => $token,
-                'user' => $user,
-            ];
-
-            return $this->successResponse(data: $data, message: 'Login successful');
+            return $this->successResponse(
+                data: ['user' => $user],
+                message: 'Login successful',
+                status: 200
+            );
 
         } catch (\Exception $e) {
             return $this->errorResponse(message: 'Server Error', status: 500, data: $e->getMessage());
@@ -75,7 +73,6 @@ class AuthController extends Controller
     {
         try {
             $validated = $request->validated();
-
 
             $userRole = Role::where('name', 'user')->first();
 
@@ -102,14 +99,15 @@ class AuthController extends Controller
     public function logout()
     {
         try {
-            $user = auth()->user();
+            Auth::guard('web')->logout();
 
-            if (!$user) {
-                return $this->errorResponse(message: 'Unauthorized', status: 401);
+            $user = auth()->user();
+            if ($user) {
+                $user->tokens()->delete();
             }
 
-            $user->tokens()->delete();
             return $this->successResponse(data: [], message: 'Logged out successfully');
+
         } catch (\Exception $e) {
             return $this->errorResponse(message: 'Server Error', status: 500, data: $e->getMessage());
         }

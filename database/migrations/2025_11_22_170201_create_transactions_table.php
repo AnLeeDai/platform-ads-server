@@ -11,12 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('wheels', function (Blueprint $table) {
+        Schema::create('transactions', function (Blueprint $table) {
             $table->uuid('id')->primary()->index();
-            $table->uuid('storage_id')->nullable()->index();
-            $table->integer('start_degree')->default(0);
-            $table->integer('end_degree')->default(0);
+            $table->uuid('user_id')->index();
+            $table->enum('type', ['add', 'subtract']);
+            $table->bigInteger('amount');
+            $table->string('description')->nullable();
             $table->timestamps();
+
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 
@@ -25,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('wheels');
+        Schema::dropIfExists('transactions');
     }
 };

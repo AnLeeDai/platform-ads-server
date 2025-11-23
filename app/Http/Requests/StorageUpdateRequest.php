@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoragePostRequest extends FormRequest
+class StorageUpdateRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -19,15 +19,12 @@ class StoragePostRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
-            '*.name' => 'required|string|max:255',
-            '*.description' => 'nullable|string',
-            '*.quantity' => 'nullable|integer|min:0',
-            '*.item_type' => 'required|string|in:CASH,COUPON,POINT',
-            '*.expired_date' => 'nullable|date',
-            '*.interest_rate' => 'required|numeric|min:0',
+            'name' => 'sometimes|string|max:255',
+            'quantity' => 'sometimes|integer|min:0',
+            'interest_rate' => 'required|numeric|min:0',
         ];
     }
 }
