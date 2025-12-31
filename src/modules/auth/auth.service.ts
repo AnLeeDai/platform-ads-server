@@ -45,14 +45,16 @@ export class AuthService {
     if (user && (await this.comparePasswords(pass, user.password))) {
       return user;
     }
-    return null;
+
+    throw new UnauthorizedException('Invalid email or password');
   }
 
   async signIn(user: UserDocument) {
+    const roles = user.roles.map((r) => r.name);
     const payload = {
       sub: user._id.toString(),
       email: user.email,
-      roles: user.roles.map((r) => r.name),
+      roles,
     };
 
     const accessToken = await this.jwtService.signAsync({
@@ -73,6 +75,7 @@ export class AuthService {
       {
         accessToken,
         refreshToken,
+        isAdmin: roles.includes('admin'),
       },
       { excludeExtraneousValues: true },
     );
@@ -125,6 +128,7 @@ export class AuthService {
       sub: string;
       email: string;
       type: string;
+      roles?: string[];
     }>(token, {
       secret: this.configService.getOrThrow('JWT_REFRESH_SECRET'),
     });
@@ -142,10 +146,12 @@ export class AuthService {
     const user = userDoc.toObject() as Record<string, any>;
     delete user.password;
 
+    const roles = userDoc.roles.map((r) => r.name);
+
     const newPayload = {
       sub: userDoc._id.toString(),
       email: userDoc.email,
-      roles: userDoc.roles.map((r) => r.name),
+      roles,
     };
 
     const accessToken = await this.jwtService.signAsync({
@@ -163,7 +169,13 @@ export class AuthService {
 
     return plainToInstance(
       LoginResponseEntity,
-      { accessToken, refreshToken },
+      {
+        accessToken,
+        refreshToken,
+        roles,
+        isAdmin: roles.includes('admin'),
+        user,
+      },
       { excludeExtraneousValues: true },
     );
   }

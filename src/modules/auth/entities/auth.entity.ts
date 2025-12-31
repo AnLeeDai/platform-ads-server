@@ -9,6 +9,12 @@ export class LoginResponseEntity {
   refreshToken: string;
 
   @Expose()
+  roles: string[];
+
+  @Expose()
+  isAdmin: boolean;
+
+  @Expose()
   @Type(() => UserEntity)
   user: UserEntity;
 
