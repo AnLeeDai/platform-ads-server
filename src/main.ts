@@ -37,11 +37,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://platform-ads-admin.vercel.app',
-    ],
+    origin: ['http://localhost:3000', 'http://localhost:5173'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Accept, Authorization',
     credentials: true,
