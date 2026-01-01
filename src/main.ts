@@ -39,8 +39,9 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',
-      'http://localhost:5173',
+      'http://127.0.0.1:5173',
       'https://platform-ads-admin.vercel.app',
+      'https://platform-ads-admin.onrender.com',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Accept, Authorization, x-custom-header',
